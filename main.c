@@ -54,7 +54,7 @@
 
 bool **alive, **aux, **initial;
 char **screen;
-int current_line, current_position;
+int current_line = 2, current_position = 0;
 int OFFSETS[8][2] = {{0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}};
 
 void shift_x(int dx) {
@@ -105,20 +105,27 @@ void update_screen(bool print_screen) {
 		POSITION_LOOP {
 			int col = 2*position;
 			char new_char = (char) (BLANK + alive[row][col] + 2*alive[row][col+1] + 4*alive[row+1][col] + 8*alive[row+1][col+1]);
-			if (print_screen) {
-				if (new_char != screen[line][position]) {
+			if (new_char != screen[line][position]) {
+				if (print_screen) {
 					int dx = position - current_position;
 					int dy = line - current_line;
-					if (dx == 0) shift_y(dy);
-					else if (dy == 0) shift_x(dx);
+					if (dy == 0) shift_x(dx);
+					else if (dx == 0) shift_y(dy);
 					else MOVE_TO(line, position);
 					printf("%c", new_char);
 				}
+				screen[line][position] = new_char;
+				if (position == WIDTH-2) {
+					current_position = 0;
+					current_line = (line == HEIGHT-1) ? 2 : line+1;
+					MOVE_TO_START_OF_LINE(current_line);
+				} else {
+					current_position = position+1;
+					current_line = line;
+				}
 			}
-			screen[line][position] = new_char;
 		}
 	}
-	FLUSH();
 }
 
 bool ** alloc_grid() {
@@ -201,17 +208,23 @@ int main() {
 	}
 	MOVE_TO_START_OF_LINE(1);
 	PRINT_BORDER();
-	MOVE_TO_START_OF_LINE(WIDTH-1);
+	MOVE_TO_START_OF_LINE(HEIGHT-1);
 	PRINT_BORDER();
+	FLUSH();
 	
 	struct timespec sleep_time, remaining;
 	sleep_time.tv_sec = 0;
-	sleep_time.tv_nsec = 0.125e9;
+	sleep_time.tv_nsec = 0.12e9;
 	
 	// Code
 	while (1) {
+		MOVE_TO_START_OF_LINE(2);
+		current_line = 2;
+		current_position = 0;
+
 		for (int iteration = 0; iteration < 1250; iteration++) {
 			update_screen(true);
+			FLUSH();
 			update_cells();
 			nanosleep(&sleep_time, &remaining);
 		}
@@ -223,6 +236,7 @@ int main() {
 		}
 	
 		update_screen(true);
+		FLUSH();
 	}
 	
 	return 0;
